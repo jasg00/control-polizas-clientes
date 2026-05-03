@@ -1,0 +1,257 @@
+import type { ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { getClientes } from '@/api/clientes'
+import type { PolizaPayload } from '@/api/polizas'
+import { DetallesCampos } from '@/components/polizas/DetallesCampos'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { DetallesPoliza, Poliza, TipoPoliza } from '@/types/models'
+
+const tipos = ['auto', 'vida', 'hogar', 'gmm', 'empresarial', 'viaje', 'danos', 'obra_civil'] as const
+const monedas = ['MXN', 'USD'] as const
+
+const schema = z.object({
+  numero: z.string().min(1, 'Numero requerido'),
+  tipo: z.enum(tipos),
+  aseguradora: z.string().min(1, 'Aseguradora requerida'),
+  plan: z.string().optional(),
+  fecha_inicio: z.string().min(1, 'Fecha requerida'),
+  fecha_fin: z.string().min(1, 'Fecha requerida'),
+  prima: z.number().min(0, 'Prima invalida'),
+  moneda: z.enum(monedas),
+  periodo_gracia_dias: z.number().min(0).optional(),
+  porcentaje_comision: z.number().min(0).max(1).optional(),
+  estatus: z.enum(['activa', 'por_vencer', 'vencida', 'cancelada']).optional(),
+  comision_pagada: z.boolean().optional(),
+  notas: z.string().optional(),
+  cliente_id: z.number().min(1, 'Cliente requerido'),
+})
+
+type FormData = z.infer<typeof schema>
+
+type Props = {
+  defaultValues?: Partial<Poliza>
+  submitLabel?: string
+  isSubmitting?: boolean
+  onSubmit: (data: PolizaPayload) => void
+}
+
+export function PolizaForm({ defaultValues, submitLabel = 'Guardar poliza', isSubmitting, onSubmit }: Props) {
+  const [clienteSearch, setClienteSearch] = useState(defaultValues?.cliente?.nombre ?? '')
+  const [detalles, setDetalles] = useState<Record<string, unknown>>((defaultValues?.detalles as Record<string, unknown>) ?? {})
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: toFormDefaults(defaultValues),
+  })
+
+  useEffect(() => {
+    reset(toFormDefaults(defaultValues))
+    setDetalles((defaultValues?.detalles as Record<string, unknown>) ?? {})
+    setClienteSearch(defaultValues?.cliente?.nombre ?? '')
+  }, [defaultValues, reset])
+
+  const { data: clientes = [] } = useQuery({
+    queryKey: ['clientes', clienteSearch],
+    queryFn: () => getClientes(clienteSearch.trim() || undefined),
+  })
+
+  const tipo = watch('tipo')
+  const prima = Number(watch('prima') || 0)
+  const porcentaje = Number(watch('porcentaje_comision') || 0)
+  const montoComision = useMemo(() => prima * porcentaje, [prima, porcentaje])
+
+  return (
+    <form onSubmit={handleSubmit((data) => onSubmit(cleanPayload(data, detalles)))} className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Numero de poliza" error={errors.numero?.message}>
+          <Input {...register('numero')} />
+        </Field>
+
+        <Field label="Tipo" error={errors.tipo?.message}>
+          <Controller
+            control={control}
+            name="tipo"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={(value) => field.onChange(value as TipoPoliza)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {tipos.map((option) => <SelectItem key={option} value={option}>{labelTipo(option)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+
+        <Field label="Aseguradora" error={errors.aseguradora?.message}>
+          <Input {...register('aseguradora')} />
+        </Field>
+
+        <Field label="Plan" error={errors.plan?.message}>
+          <Input {...register('plan')} />
+        </Field>
+
+        <Field label="Fecha inicio" error={errors.fecha_inicio?.message}>
+          <Input type="date" {...register('fecha_inicio')} />
+        </Field>
+
+        <Field label="Fecha fin" error={errors.fecha_fin?.message}>
+          <Input type="date" {...register('fecha_fin')} />
+        </Field>
+
+        <Field label="Prima" error={errors.prima?.message}>
+          <Input type="number" step="0.01" {...register('prima', { valueAsNumber: true })} />
+        </Field>
+
+        <Field label="Moneda" error={errors.moneda?.message}>
+          <Controller
+            control={control}
+            name="moneda"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {monedas.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+
+        <Field label="Periodo de gracia (dias)" error={errors.periodo_gracia_dias?.message}>
+          <Input type="number" {...register('periodo_gracia_dias', { valueAsNumber: true })} />
+        </Field>
+
+        <Field label="% Comision" error={errors.porcentaje_comision?.message}>
+          <Input type="number" step="0.01" min="0" max="1" {...register('porcentaje_comision', { valueAsNumber: true })} />
+        </Field>
+      </div>
+
+      <div className="rounded-md border bg-slate-50 px-4 py-3 text-sm">
+        <span className="text-muted-foreground">Comision estimada: </span>
+        <span className="font-semibold">{formatMoney(montoComision)}</span>
+      </div>
+
+      <div className="space-y-3">
+        <Field label="Buscar cliente" error={errors.cliente_id?.message}>
+          <Input value={clienteSearch} onChange={(event) => setClienteSearch(event.target.value)} />
+        </Field>
+        <Controller
+          control={control}
+          name="cliente_id"
+          render={({ field }) => (
+            <Select value={field.value ? String(field.value) : ''} onValueChange={(value) => field.onChange(Number(value))}>
+              <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
+              <SelectContent>
+                {clientes.map((cliente) => <SelectItem key={cliente.id} value={String(cliente.id)}>{cliente.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+
+      <div className="space-y-3 rounded-lg border p-4">
+        <h2 className="text-sm font-semibold">Detalles de la poliza</h2>
+        <DetallesCampos tipo={tipo} value={detalles} onChange={setDetalles} />
+      </div>
+
+      <Field label="Notas" error={errors.notas?.message}>
+        <textarea
+          {...register('notas')}
+          className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-24 w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        />
+      </Field>
+
+      <Button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Guardando...' : submitLabel}
+      </Button>
+    </form>
+  )
+}
+
+function toFormDefaults(defaultValues?: Partial<Poliza>): FormData {
+  return {
+    numero: defaultValues?.numero ?? '',
+    tipo: defaultValues?.tipo ?? 'auto',
+    aseguradora: defaultValues?.aseguradora ?? '',
+    plan: defaultValues?.plan ?? '',
+    fecha_inicio: defaultValues?.fecha_inicio ?? '',
+    fecha_fin: defaultValues?.fecha_fin ?? '',
+    prima: Number(defaultValues?.prima ?? 0),
+    moneda: defaultValues?.moneda ?? 'MXN',
+    periodo_gracia_dias: Number(defaultValues?.periodo_gracia_dias ?? 0),
+    porcentaje_comision: Number(defaultValues?.porcentaje_comision ?? 0),
+    estatus: defaultValues?.estatus ?? 'activa',
+    comision_pagada: defaultValues?.comision_pagada ?? false,
+    notas: defaultValues?.notas ?? '',
+    cliente_id: Number(defaultValues?.cliente_id ?? defaultValues?.cliente?.id ?? 0),
+  }
+}
+
+function cleanPayload(data: FormData, detalles: Record<string, unknown>): PolizaPayload {
+  const payload: PolizaPayload = {
+    numero: data.numero.trim(),
+    tipo: data.tipo,
+    aseguradora: data.aseguradora.trim(),
+    fecha_inicio: data.fecha_inicio,
+    fecha_fin: data.fecha_fin,
+    prima: Number(data.prima),
+    moneda: data.moneda,
+    periodo_gracia_dias: Number(data.periodo_gracia_dias ?? 0),
+    porcentaje_comision: Number(data.porcentaje_comision ?? 0),
+    cliente_id: Number(data.cliente_id),
+    detalles: detalles as DetallesPoliza,
+  }
+  if (data.plan?.trim()) payload.plan = data.plan.trim()
+  if (data.notas?.trim()) payload.notas = data.notas.trim()
+  if (data.estatus) payload.estatus = data.estatus
+  if (data.comision_pagada !== undefined) payload.comision_pagada = data.comision_pagada
+  return payload
+}
+
+function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      {children}
+      {error && <p className="text-sm text-red-500">{error}</p>}
+    </div>
+  )
+}
+
+export function labelTipo(tipo: TipoPoliza) {
+  const labels: Record<TipoPoliza, string> = {
+    auto: 'Auto',
+    vida: 'Vida',
+    hogar: 'Hogar',
+    gmm: 'GMM',
+    empresarial: 'Empresarial',
+    viaje: 'Viaje',
+    danos: 'Danos',
+    obra_civil: 'Obra civil',
+  }
+  return labels[tipo]
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value || 0)
+}
