@@ -17,7 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { DetallesPoliza, Poliza, TipoPoliza } from '@/types/models'
+import { cn } from '@/lib/utils'
+import type { DetallesPoliza, OcrResult, Poliza, TipoPoliza } from '@/types/models'
 
 const tipos = ['auto', 'vida', 'hogar', 'gmm', 'empresarial', 'viaje', 'danos', 'obra_civil'] as const
 const monedas = ['MXN', 'USD'] as const
@@ -43,12 +44,13 @@ type FormData = z.infer<typeof schema>
 
 type Props = {
   defaultValues?: Partial<Poliza>
+  ocrResult?: OcrResult
   submitLabel?: string
   isSubmitting?: boolean
   onSubmit: (data: PolizaPayload) => void
 }
 
-export function PolizaForm({ defaultValues, submitLabel = 'Guardar poliza', isSubmitting, onSubmit }: Props) {
+export function PolizaForm({ defaultValues, ocrResult, submitLabel = 'Guardar poliza', isSubmitting, onSubmit }: Props) {
   const [clienteSearch, setClienteSearch] = useState(defaultValues?.cliente?.nombre ?? '')
   const [detalles, setDetalles] = useState<Record<string, unknown>>((defaultValues?.detalles as Record<string, unknown>) ?? {})
 
@@ -83,17 +85,17 @@ export function PolizaForm({ defaultValues, submitLabel = 'Guardar poliza', isSu
   return (
     <form onSubmit={handleSubmit((data) => onSubmit(cleanPayload(data, detalles)))} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Numero de poliza" error={errors.numero?.message}>
-          <Input {...register('numero')} />
+        <Field label="Numero de poliza" error={errors.numero?.message} confidence={ocrConf(ocrResult, 'numero')}>
+          <Input {...register('numero')} className={cn(ocrClass(ocrResult, 'numero'))} />
         </Field>
 
-        <Field label="Tipo" error={errors.tipo?.message}>
+        <Field label="Tipo" error={errors.tipo?.message} confidence={ocrConf(ocrResult, 'tipo')}>
           <Controller
             control={control}
             name="tipo"
             render={({ field }) => (
               <Select value={field.value} onValueChange={(value) => field.onChange(value as TipoPoliza)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className={cn(ocrClass(ocrResult, 'tipo'))}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {tipos.map((option) => <SelectItem key={option} value={option}>{labelTipo(option)}</SelectItem>)}
                 </SelectContent>
@@ -102,33 +104,33 @@ export function PolizaForm({ defaultValues, submitLabel = 'Guardar poliza', isSu
           />
         </Field>
 
-        <Field label="Aseguradora" error={errors.aseguradora?.message}>
-          <Input {...register('aseguradora')} />
+        <Field label="Aseguradora" error={errors.aseguradora?.message} confidence={ocrConf(ocrResult, 'aseguradora')}>
+          <Input {...register('aseguradora')} className={cn(ocrClass(ocrResult, 'aseguradora'))} />
         </Field>
 
-        <Field label="Plan" error={errors.plan?.message}>
-          <Input {...register('plan')} />
+        <Field label="Plan" error={errors.plan?.message} confidence={ocrConf(ocrResult, 'plan')}>
+          <Input {...register('plan')} className={cn(ocrClass(ocrResult, 'plan'))} />
         </Field>
 
-        <Field label="Fecha inicio" error={errors.fecha_inicio?.message}>
-          <Input type="date" {...register('fecha_inicio')} />
+        <Field label="Fecha inicio" error={errors.fecha_inicio?.message} confidence={ocrConf(ocrResult, 'fecha_inicio')}>
+          <Input type="date" {...register('fecha_inicio')} className={cn(ocrClass(ocrResult, 'fecha_inicio'))} />
         </Field>
 
-        <Field label="Fecha fin" error={errors.fecha_fin?.message}>
-          <Input type="date" {...register('fecha_fin')} />
+        <Field label="Fecha fin" error={errors.fecha_fin?.message} confidence={ocrConf(ocrResult, 'fecha_fin')}>
+          <Input type="date" {...register('fecha_fin')} className={cn(ocrClass(ocrResult, 'fecha_fin'))} />
         </Field>
 
-        <Field label="Prima" error={errors.prima?.message}>
-          <Input type="number" step="0.01" {...register('prima', { valueAsNumber: true })} />
+        <Field label="Prima" error={errors.prima?.message} confidence={ocrConf(ocrResult, 'prima')}>
+          <Input type="number" step="0.01" {...register('prima', { valueAsNumber: true })} className={cn(ocrClass(ocrResult, 'prima'))} />
         </Field>
 
-        <Field label="Moneda" error={errors.moneda?.message}>
+        <Field label="Moneda" error={errors.moneda?.message} confidence={ocrConf(ocrResult, 'moneda')}>
           <Controller
             control={control}
             name="moneda"
             render={({ field }) => (
               <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className={cn(ocrClass(ocrResult, 'moneda'))}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {monedas.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
                 </SelectContent>
@@ -228,14 +230,39 @@ function cleanPayload(data: FormData, detalles: Record<string, unknown>): Poliza
   return payload
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
+function Field({ label, error, confidence, children }: { label: string; error?: string; confidence?: number; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Label>{label}</Label>
+        {confidence !== undefined && confidence >= 0.8 && (
+          <span className="text-xs text-green-600 font-medium">✓ IA</span>
+        )}
+        {confidence !== undefined && confidence > 0 && confidence < 0.8 && (
+          <span className="text-xs text-yellow-600 font-medium" title={`Confianza: ${Math.round(confidence * 100)}% — verificar`}>
+            ⚠ Verificar
+          </span>
+        )}
+      </div>
       {children}
       {error && <p className="text-sm text-red-500">{error}</p>}
     </div>
   )
+}
+
+function ocrConf(ocrResult: OcrResult | undefined, field: keyof OcrResult): number | undefined {
+  if (!ocrResult) return undefined
+  const item = ocrResult[field]
+  if (!item || typeof item !== 'object' || !('confianza' in item)) return undefined
+  if (item.valor === null) return undefined
+  return item.confianza as number
+}
+
+function ocrClass(ocrResult: OcrResult | undefined, field: keyof OcrResult): string {
+  const conf = ocrConf(ocrResult, field)
+  if (conf === undefined) return ''
+  if (conf >= 0.8) return 'ring-2 ring-green-400 ring-offset-0'
+  return 'ring-2 ring-yellow-400 ring-offset-0'
 }
 
 export function labelTipo(tipo: TipoPoliza) {

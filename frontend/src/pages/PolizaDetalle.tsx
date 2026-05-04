@@ -4,10 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Edit } from 'lucide-react'
 import { toast } from 'sonner'
 import { getPoliza, updatePoliza } from '@/api/polizas'
+import { createTarea, type TareaPayload } from '@/api/tareas'
+import { DocumentoList } from '@/components/documentos/DocumentoList'
+import { DocumentoUploader } from '@/components/documentos/DocumentoUploader'
 import { labelTipo, PolizaForm } from '@/components/polizas/PolizaForm'
 import { VigenciaBadge } from '@/components/polizas/VigenciaBadge'
+import { TareaForm } from '@/components/tareas/TareaForm'
+import { TareaList } from '@/components/tareas/TareaList'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -33,6 +39,14 @@ export default function PolizaDetalle() {
       toast.success('Poliza actualizada')
     },
     onError: () => toast.error('No se pudo actualizar la poliza'),
+  })
+  const createTaskMutation = useMutation({
+    mutationFn: createTarea,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tareas'] })
+      toast.success('Tarea creada')
+    },
+    onError: () => toast.error('No se pudo crear la tarea'),
   })
 
   if (isLoading) {
@@ -104,12 +118,33 @@ export default function PolizaDetalle() {
           )}
         </TabsContent>
 
-        <TabsContent value="documentos" className="rounded-lg border bg-white p-4 text-sm text-muted-foreground">
-          Sin documentos registrados
+        <TabsContent value="documentos" className="rounded-lg border bg-white p-4">
+          <div className="space-y-5">
+            <DocumentoUploader polizaId={poliza.id} />
+            <DocumentoList polizaId={poliza.id} />
+          </div>
         </TabsContent>
 
-        <TabsContent value="tareas" className="rounded-lg border bg-white p-4 text-sm text-muted-foreground">
-          Sin tareas registradas
+        <TabsContent value="tareas" className="rounded-lg border bg-white p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Tareas</h2>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm">Nueva tarea</Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader><DialogTitle>Nueva tarea</DialogTitle></DialogHeader>
+                <TareaForm
+                  fixedClienteId={poliza.cliente_id}
+                  fixedPolizaId={poliza.id}
+                  isSubmitting={createTaskMutation.isPending}
+                  submitLabel="Crear tarea"
+                  onSubmit={(data: TareaPayload) => createTaskMutation.mutate(data)}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+          <TareaList filters={{ poliza_id: poliza.id }} />
         </TabsContent>
 
         <TabsContent value="alertas" className="rounded-lg border bg-white p-4 text-sm text-muted-foreground">

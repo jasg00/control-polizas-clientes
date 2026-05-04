@@ -4,10 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Edit, Mail, Phone, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { getCliente, updateCliente } from '@/api/clientes'
+import { createTarea, type TareaPayload } from '@/api/tareas'
 import { ClienteForm } from '@/components/clientes/ClienteForm'
+import { DocumentoList } from '@/components/documentos/DocumentoList'
+import { DocumentoUploader } from '@/components/documentos/DocumentoUploader'
 import { VigenciaBadge } from '@/components/polizas/VigenciaBadge'
+import { TareaForm } from '@/components/tareas/TareaForm'
+import { TareaList } from '@/components/tareas/TareaList'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -32,6 +38,14 @@ export default function ClienteDetalle() {
       toast.success('Cliente actualizado')
     },
     onError: () => toast.error('No se pudo actualizar el cliente'),
+  })
+  const createTaskMutation = useMutation({
+    mutationFn: createTarea,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tareas'] })
+      toast.success('Tarea creada')
+    },
+    onError: () => toast.error('No se pudo crear la tarea'),
   })
 
   if (isLoading) {
@@ -114,12 +128,32 @@ export default function ClienteDetalle() {
           )}
         </TabsContent>
 
-        <TabsContent value="tareas" className="rounded-lg border p-4 text-sm text-muted-foreground">
-          Sin tareas registradas
+        <TabsContent value="tareas" className="rounded-lg border bg-white p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Tareas</h2>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Nueva tarea</Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader><DialogTitle>Nueva tarea</DialogTitle></DialogHeader>
+                <TareaForm
+                  fixedClienteId={cliente.id}
+                  isSubmitting={createTaskMutation.isPending}
+                  submitLabel="Crear tarea"
+                  onSubmit={(data: TareaPayload) => createTaskMutation.mutate(data)}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+          <TareaList filters={{ cliente_id: cliente.id }} />
         </TabsContent>
 
-        <TabsContent value="documentos" className="rounded-lg border p-4 text-sm text-muted-foreground">
-          Sin documentos registrados
+        <TabsContent value="documentos" className="rounded-lg border bg-white p-4">
+          <div className="space-y-5">
+            <DocumentoUploader clienteId={cliente.id} />
+            <DocumentoList clienteId={cliente.id} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

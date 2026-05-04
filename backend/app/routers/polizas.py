@@ -112,6 +112,19 @@ def get_poliza(
     return poliza_to_out(poliza)
 
 
+@router.get("/{poliza_id}/marcar-comision-pagada", response_model=PolizaOut)
+def marcar_comision_pagada(
+    poliza_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    poliza = get_scoped_poliza(poliza_id, db, current_user)
+    poliza.comision_pagada = True
+    db.commit()
+    db.refresh(poliza)
+    return poliza_to_out(poliza)
+
+
 @router.put("/{poliza_id}", response_model=PolizaOut)
 def update_poliza(
     poliza_id: int,

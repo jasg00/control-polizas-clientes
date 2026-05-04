@@ -1,5 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
+chcp 65001 >nul 2>nul
+title DSR Assistant - Control de Polizas
 
 set "ROOT_DIR=%~dp0"
 set "ROOT_DIR=%ROOT_DIR:~0,-1%"
@@ -18,31 +20,24 @@ set "FRONTEND_LOG=%RUNTIME_DIR%\frontend.log"
 set "BACKEND_RUN=%RUNTIME_DIR%\run-backend.cmd"
 set "FRONTEND_RUN=%RUNTIME_DIR%\run-frontend.cmd"
 set "BACKEND_PY=%BACKEND_DIR%\venv\Scripts\python.exe"
+set "APP_URL=http://%FRONTEND_HOST%:%FRONTEND_PORT%"
+set "API_URL=http://127.0.0.1:%BACKEND_PORT%/docs"
 
 set "ACTION=%~1"
 set "TARGET=%~2"
-set "DOUBLE_CLICK=0"
-set "OPEN_AFTER_START=0"
-if "%ACTION%"=="" (
-  set "ACTION=start"
-  set "DOUBLE_CLICK=1"
-  set "OPEN_AFTER_START=1"
-)
-if /I "%ACTION%"=="launch" (
-  set "ACTION=start"
-  set "OPEN_AFTER_START=1"
-)
 
+if "%ACTION%"=="" goto menu
+if /I "%ACTION%"=="menu" goto menu
 if /I "%ACTION%"=="start" goto start
+if /I "%ACTION%"=="launch" goto launch
 if /I "%ACTION%"=="stop" goto stop
 if /I "%ACTION%"=="restart" goto restart
 if /I "%ACTION%"=="status" goto status
 if /I "%ACTION%"=="open" goto open
-if /I "%ACTION%"=="access" goto open
 if /I "%ACTION%"=="logs" goto logs
 if /I "%ACTION%"=="log" goto logs
-if /I "%ACTION%"=="review" goto logs
-if /I "%ACTION%"=="revie" goto logs
+if /I "%ACTION%"=="setup-admin" goto setup_admin
+if /I "%ACTION%"=="reset-admin" goto reset_admin
 if /I "%ACTION%"=="help" goto help
 if /I "%ACTION%"=="-h" goto help
 if /I "%ACTION%"=="--help" goto help
@@ -51,77 +46,110 @@ echo Unknown command: %ACTION%
 echo.
 goto help
 
-:start
-set "START_FAILED=0"
-if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%"
-call :StartBackend
-if errorlevel 1 set "START_FAILED=1"
-call :StartFrontend
-if errorlevel 1 set "START_FAILED=1"
-if "%START_FAILED%"=="1" (
-  echo.
-  echo One or more services did not start.
-  goto fail
-)
+:menu
+call :EnsureRuntime
+cls
 echo.
-echo App:  http://%FRONTEND_HOST%:%FRONTEND_PORT%
-echo API:  http://127.0.0.1:%BACKEND_PORT%/docs
-if "%OPEN_AFTER_START%"=="1" (
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Sleep -Seconds 2" >nul 2>nul
-  echo Opening http://%FRONTEND_HOST%:%FRONTEND_PORT%
-  start "" "http://%FRONTEND_HOST%:%FRONTEND_PORT%"
-)
+echo ============================================================
+echo              DSR Assistant - Control Panel
+echo              Control de Polizas y Clientes
+echo ============================================================
+echo.
+call :InlineStatus
+echo.
+echo [1] Start DSR Assistant
+echo [2] Stop DSR Assistant
+echo [3] Check Status
+echo [4] Open in browser
+echo [5] View server logs
+echo [6] Setup admin account (first run)
+echo [7] Reset admin password (emergency)
+echo [0] Exit
+echo.
+set /p "CHOICE=Select option: "
+if "%CHOICE%"=="1" goto menu_start
+if "%CHOICE%"=="2" goto menu_stop
+if "%CHOICE%"=="3" goto menu_status
+if "%CHOICE%"=="4" goto menu_open
+if "%CHOICE%"=="5" goto menu_logs
+if "%CHOICE%"=="6" goto menu_setup_admin
+if "%CHOICE%"=="7" goto menu_reset_admin
+if "%CHOICE%"=="0" goto end
+echo.
+echo Invalid option.
+pause
+goto menu
+
+:menu_start
+call :StartAll
+if errorlevel 1 goto menu_pause
+echo.
+echo Opening %APP_URL%
+start "" "%APP_URL%"
+goto menu_pause
+
+:menu_stop
+call :StopAll
+goto menu_pause
+
+:menu_status
+call :PrintFullStatus
+goto menu_pause
+
+:menu_open
+goto open
+
+:menu_logs
+goto logs_all
+
+:menu_setup_admin
+goto setup_admin
+
+:menu_reset_admin
+goto reset_admin
+
+:menu_pause
+echo.
+pause
+goto menu
+
+:start
+call :StartAll
+goto end
+
+:launch
+call :StartAll
+if errorlevel 1 goto fail
+start "" "%APP_URL%"
 goto end
 
 :stop
-call :StopService "frontend" "%FRONTEND_PID%" "%FRONTEND_PORT%"
-call :StopService "backend" "%BACKEND_PID%" "%BACKEND_PORT%"
+call :StopAll
 goto end
 
 :restart
-set "START_FAILED=0"
-call :StopService "frontend" "%FRONTEND_PID%" "%FRONTEND_PORT%"
-call :StopService "backend" "%BACKEND_PID%" "%BACKEND_PORT%"
-call :StartBackend
-if errorlevel 1 set "START_FAILED=1"
-call :StartFrontend
-if errorlevel 1 set "START_FAILED=1"
-if "%START_FAILED%"=="1" (
-  echo.
-  echo One or more services did not start.
-  goto fail
-)
-echo.
-echo App:  http://%FRONTEND_HOST%:%FRONTEND_PORT%
-echo API:  http://127.0.0.1:%BACKEND_PORT%/docs
+call :StopAll
+call :StartAll
 goto end
 
 :status
-call :PrintStatus "backend" "%BACKEND_PID%" "%BACKEND_PORT%" "%BACKEND_LOG%"
-call :PrintStatus "frontend" "%FRONTEND_PID%" "%FRONTEND_PORT%" "%FRONTEND_LOG%"
+call :PrintFullStatus
 goto end
 
 :open
 if /I "%TARGET%"=="api" (
-  start "" "http://127.0.0.1:%BACKEND_PORT%/docs"
-  goto end
+  start "" "%API_URL%"
+) else (
+  start "" "%APP_URL%"
 )
-if /I "%TARGET%"=="docs" (
-  start "" "http://127.0.0.1:%BACKEND_PORT%/docs"
-  goto end
-)
-start "" "http://%FRONTEND_HOST%:%FRONTEND_PORT%"
 goto end
 
 :logs
-if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%"
 if /I "%TARGET%"=="backend" goto logs_backend
 if /I "%TARGET%"=="api" goto logs_backend
 if /I "%TARGET%"=="frontend" goto logs_frontend
 if /I "%TARGET%"=="web" goto logs_frontend
 if /I "%TARGET%"=="all" goto logs_all
-if /I "%TARGET%"=="logs" goto logs_all
-if /I "%TARGET%"=="log" goto logs_all
 if "%TARGET%"=="" goto logs_all
 echo Unknown log target: %TARGET%
 echo Use: polizas.bat logs [backend^|frontend^|all]
@@ -129,12 +157,12 @@ goto end
 
 :logs_backend
 call :TouchLog "%BACKEND_LOG%"
-powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Command "Get-Content -Path '%BACKEND_LOG%' -Tail 160 -Wait"
+start "Backend logs" powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Command "Get-Content -Path '%BACKEND_LOG%' -Tail 160 -Wait"
 goto end
 
 :logs_frontend
 call :TouchLog "%FRONTEND_LOG%"
-powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Command "Get-Content -Path '%FRONTEND_LOG%' -Tail 160 -Wait"
+start "Frontend logs" powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Command "Get-Content -Path '%FRONTEND_LOG%' -Tail 160 -Wait"
 goto end
 
 :logs_all
@@ -144,29 +172,75 @@ start "Backend logs" powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Comm
 start "Frontend logs" powershell -NoProfile -ExecutionPolicy Bypass -NoExit -Command "Get-Content -Path '%FRONTEND_LOG%' -Tail 160 -Wait"
 goto end
 
+:setup_admin
+call :RunAdminTool ""
+goto menu_pause_if_interactive
+
+:reset_admin
+echo.
+echo This will reset/reactivate the admin account.
+echo Default credentials: admin@polizas.local / Admin1234!
+echo You can override with ADMIN_EMAIL and ADMIN_PASSWORD environment variables.
+echo.
+set /p "CONFIRM=Type RESET to continue: "
+if /I not "%CONFIRM%"=="RESET" (
+  echo Reset cancelled.
+  goto menu_pause_if_interactive
+)
+call :RunAdminTool "--reset"
+goto menu_pause_if_interactive
+
+:menu_pause_if_interactive
+if "%ACTION%"=="" (
+  goto menu_pause
+) else (
+  goto end
+)
+
 :help
-echo Polizas dev helper
+echo DSR Assistant - Control de Polizas helper
 echo.
 echo Usage:
-echo   polizas.bat                       Start and open the web app
-echo   polizas.bat start                 Start backend and frontend
-echo   polizas.bat stop                  Stop services started by this helper
-echo   polizas.bat restart               Stop, then start again
-echo   polizas.bat status                Show PID, port, and log paths
-echo   polizas.bat open                  Open the web app
-echo   polizas.bat open api              Open FastAPI docs
-echo   polizas.bat logs                  Open backend and frontend log tails
-echo   polizas.bat logs backend          Tail backend log
-echo   polizas.bat logs frontend         Tail frontend log
+echo   polizas.bat                     Open the interactive control panel
+echo   polizas.bat start               Start backend and frontend
+echo   polizas.bat launch              Start and open the web app
+echo   polizas.bat stop                Stop services started by this helper
+echo   polizas.bat restart             Stop, then start again
+echo   polizas.bat status              Show PID, port, and log paths
+echo   polizas.bat open                Open the web app
+echo   polizas.bat open api            Open FastAPI docs
+echo   polizas.bat logs                Open backend and frontend log tails
+echo   polizas.bat logs backend        Tail backend log
+echo   polizas.bat logs frontend       Tail frontend log
+echo   polizas.bat setup-admin         Create the admin account if missing
+echo   polizas.bat reset-admin         Reset/reactivate the admin account
 echo.
 echo Defaults:
-echo   BACKEND_PORT=%BACKEND_PORT%
-echo   FRONTEND_PORT=%FRONTEND_PORT%
-echo.
-echo Override example:
-echo   set FRONTEND_PORT=5173
-echo   polizas.bat start
+echo   App: %APP_URL%
+echo   API: %API_URL%
 goto end
+
+:StartAll
+set "START_FAILED=0"
+call :EnsureRuntime
+call :StartBackend
+if errorlevel 1 set "START_FAILED=1"
+call :StartFrontend
+if errorlevel 1 set "START_FAILED=1"
+if "%START_FAILED%"=="1" (
+  echo.
+  echo One or more services did not start.
+  exit /b 1
+)
+echo.
+echo App: %APP_URL%
+echo API: %API_URL%
+exit /b 0
+
+:StopAll
+call :StopService "frontend" "%FRONTEND_PID%" "%FRONTEND_PORT%"
+call :StopService "backend" "%BACKEND_PID%" "%BACKEND_PORT%"
+exit /b 0
 
 :StartBackend
 call :IsRunning "%BACKEND_PID%"
@@ -176,13 +250,12 @@ if "%ERRORLEVEL%"=="0" (
 )
 if not exist "%BACKEND_PY%" (
   echo Backend venv not found: "%BACKEND_PY%"
-  echo Create/install the backend venv before starting.
+  echo Create/install backend dependencies first.
   exit /b 1
 )
 call :IsPortInUse "%BACKEND_PORT%"
 if "%ERRORLEVEL%"=="0" (
   echo Backend port %BACKEND_PORT% is already in use by another process.
-  echo Run "polizas.bat status" to inspect it, or free the port before starting.
   exit /b 1
 )
 >> "%BACKEND_LOG%" echo.
@@ -211,7 +284,6 @@ if not exist "%FRONTEND_DIR%\node_modules" (
 call :IsPortInUse "%FRONTEND_PORT%"
 if "%ERRORLEVEL%"=="0" (
   echo Frontend port %FRONTEND_PORT% is already in use by another process.
-  echo Run "polizas.bat status" to inspect it, or free the port before starting.
   exit /b 1
 )
 >> "%FRONTEND_LOG%" echo.
@@ -267,6 +339,32 @@ if "!ERRORLEVEL!"=="0" call :KillPort "%SERVICE_PORT%" "%SERVICE_NAME%"
 echo %SERVICE_NAME% stopped.
 exit /b 0
 
+:PrintFullStatus
+echo.
+call :PrintStatus "backend" "%BACKEND_PID%" "%BACKEND_PORT%" "%BACKEND_LOG%"
+call :PrintStatus "frontend" "%FRONTEND_PID%" "%FRONTEND_PORT%" "%FRONTEND_LOG%"
+echo.
+echo App: %APP_URL%
+echo API: %API_URL%
+exit /b 0
+
+:InlineStatus
+call :IsRunning "%BACKEND_PID%"
+if "%ERRORLEVEL%"=="0" (
+  set "BACKEND_STATE=running"
+) else (
+  set "BACKEND_STATE=stopped"
+)
+call :IsRunning "%FRONTEND_PID%"
+if "%ERRORLEVEL%"=="0" (
+  set "FRONTEND_STATE=running"
+) else (
+  set "FRONTEND_STATE=stopped"
+)
+echo Backend:  %BACKEND_STATE%  port %BACKEND_PORT%
+echo Frontend: %FRONTEND_STATE% port %FRONTEND_PORT%
+exit /b 0
+
 :PrintStatus
 set "STATUS_NAME=%~1"
 set "STATUS_PID_FILE=%~2"
@@ -283,6 +381,22 @@ if "%ERRORLEVEL%"=="0" (
     echo %STATUS_NAME%: stopped, port %STATUS_PORT%, log "%STATUS_LOG%"
   )
 )
+exit /b 0
+
+:RunAdminTool
+set "ADMIN_ARG=%~1"
+if not exist "%BACKEND_PY%" (
+  echo Backend venv not found: "%BACKEND_PY%"
+  exit /b 1
+)
+pushd "%BACKEND_DIR%"
+"%BACKEND_PY%" seed_admin.py %ADMIN_ARG%
+set "ADMIN_EXIT=%ERRORLEVEL%"
+popd
+exit /b %ADMIN_EXIT%
+
+:EnsureRuntime
+if not exist "%RUNTIME_DIR%" mkdir "%RUNTIME_DIR%"
 exit /b 0
 
 :IsRunning
@@ -311,10 +425,5 @@ endlocal
 exit /b 0
 
 :fail
-if "%DOUBLE_CLICK%"=="1" (
-  echo.
-  echo Press any key to close this window.
-  pause >nul
-)
 endlocal
 exit /b 1

@@ -171,7 +171,7 @@ export interface Documento {
   id: number
   nombre_original: string
   tipo: TipoDocumento
-  tamaño_bytes: number
+  tamano_bytes: number
   mime_type: string
   poliza_id?: number
   cliente_id?: number
@@ -195,7 +195,7 @@ export interface Tarea {
   asignada_a: number
   cliente?: Cliente
   poliza?: PolizaSummary
-  asignado_a_usuario?: Usuario
+  usuario_asignado?: Usuario
   created_at: string
   updated_at: string
 }
@@ -235,7 +235,7 @@ export interface LLMCallLog {
 }
 
 export interface OcrFieldResult {
-  valor: string | number | null
+  valor: string | number | Record<string, unknown> | null
   confianza: number
 }
 
@@ -271,6 +271,7 @@ export interface ConfigAlertas {
   smtp_host?: string
   smtp_port?: number
   smtp_user?: string
+  smtp_password_masked?: string
   smtp_from_name?: string
   email_agente?: string
 }
@@ -316,6 +317,23 @@ export interface ReporteComisiones {
   por_aseguradora: Array<{ aseguradora: string; total: number; pagado: number }>
   por_tipo: Array<{ tipo: TipoPoliza; total: number }>
   polizas: PolizaSummary[]
+}
+
+export interface VencimientoMes {
+  mes: string
+  total: number
+}
+
+export interface ActividadMetrica {
+  actual: number
+  anterior: number
+  cambio_porcentaje: number
+}
+
+export interface ReporteActividad {
+  nuevos_clientes: ActividadMetrica
+  nuevas_polizas: ActividadMetrica
+  tareas_completadas: ActividadMetrica
 }
 
 export interface ReporteAICostos {

@@ -9,15 +9,10 @@ import ClienteDetalle from '@/pages/ClienteDetalle'
 import Polizas from '@/pages/Polizas'
 import NuevaPoliza from '@/pages/NuevaPoliza'
 import PolizaDetalle from '@/pages/PolizaDetalle'
-
-const placeholder = (label: string) => () => (
-  <div className="p-8 text-gray-400 text-sm">{label}</div>
-)
-
-const Renovaciones = placeholder('Renovaciones - Modulo 6')
-const Tareas = placeholder('Tareas - Modulo 8')
-const Reportes = placeholder('Reportes - Modulo 9')
-const Configuracion = placeholder('Configuracion - Modulo 11')
+import Renovaciones from '@/pages/Renovaciones'
+import Tareas from '@/pages/Tareas'
+import Reportes from '@/pages/Reportes'
+import Configuracion from '@/pages/Configuracion'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },

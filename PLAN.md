@@ -50,7 +50,7 @@
 ## MODULE 1 — Authentication & User Management (Security Foundation)
 
 ### 1.1 Backend — Models & Schemas
-- [ ] Create `backend/app/models/usuario.py`:
+- [x] Create `backend/app/models/usuario.py`:
   ```python
   class Usuario(Base):
       id: int (PK)
@@ -61,34 +61,34 @@
       activo: bool = True
       created_at: datetime
   ```
-- [ ] Create `backend/app/schemas/usuario.py`:
+- [x] Create `backend/app/schemas/usuario.py`:
   - `UsuarioCreate(nombre, email, password, rol)`
   - `UsuarioOut(id, nombre, email, rol, activo, created_at)` — no password
   - `UsuarioUpdate(nombre?, email?, rol?, activo?)`
   - `LoginRequest(email, password)`
   - `TokenResponse(access_token, refresh_token, token_type, user: UsuarioOut)`
   - `RefreshRequest(refresh_token)`
-- [ ] Create first Alembic migration: `alembic revision --autogenerate -m "create_usuarios"`
-- [ ] Run migration: `alembic upgrade head`
-- [ ] Create admin seed script `backend/seed_admin.py` — creates one admin user if none exists
+- [x] Create first Alembic migration: `alembic revision --autogenerate -m "create_usuarios"`
+- [x] Run migration: `alembic upgrade head`
+- [x] Create admin seed script `backend/seed_admin.py` — creates one admin user if none exists
 
 ### 1.2 Backend — Auth Services & Dependencies
-- [ ] Create `backend/app/services/auth.py`:
+- [x] Create `backend/app/services/auth.py`:
   - `hash_password(plain: str) -> str` — bcrypt, cost 12
   - `verify_password(plain: str, hashed: str) -> bool`
   - `create_access_token(user_id: int, rol: str) -> str` — 60 min JWT
   - `create_refresh_token(user_id: int) -> str` — 7 day JWT
   - `decode_token(token: str) -> dict` — raises 401 if expired/invalid
-- [ ] Create `backend/app/dependencies/auth.py`:
+- [x] Create `backend/app/dependencies/auth.py`:
   - `get_current_user(token: str = Depends(oauth2_scheme), db) -> Usuario` — decodes JWT, loads user from DB, raises 401 if inactive
   - `require_admin(user = Depends(get_current_user)) -> Usuario` — raises 403 if not admin
 
 ### 1.3 Backend — Auth Router
-- [ ] Create `backend/app/routers/auth.py`:
+- [x] Create `backend/app/routers/auth.py`:
   - `POST /api/auth/login` — verify email+password, return `TokenResponse`
   - `POST /api/auth/refresh` — verify refresh token, return new `access_token`
   - `GET /api/auth/me` — returns current user info (requires auth)
-- [ ] Create `backend/app/routers/usuarios.py` (admin only):
+- [x] Create `backend/app/routers/usuarios.py` (admin only):
   - `GET /api/usuarios` — list all users
   - `POST /api/usuarios` — create new agent (`require_admin`)
   - `GET /api/usuarios/{id}` — get user detail
@@ -96,21 +96,21 @@
   - `DELETE /api/usuarios/{id}` — soft-delete (set `activo=False`) (`require_admin`)
 
 ### 1.4 Frontend — Auth
-- [ ] Create `frontend/src/pages/Login.tsx`:
+- [x] Create `frontend/src/pages/Login.tsx`:
   - Email + password form using react-hook-form + zod
   - On submit → POST `/api/auth/login` → store tokens + user in Zustand → redirect to `/`
   - Show error message on 401
-- [ ] Create `frontend/src/components/auth/ProtectedRoute.tsx`:
+- [x] Create `frontend/src/components/auth/ProtectedRoute.tsx`:
   - Read `accessToken` from Zustand
   - If null → redirect to `/login`
   - If token expiry is close → call refresh before rendering
-- [ ] Create `frontend/src/components/auth/RoleGuard.tsx`:
+- [x] Create `frontend/src/components/auth/RoleGuard.tsx`:
   - Props: `requiredRole: "admin" | "agente"`
   - Renders children only if `user.rol === requiredRole`; else renders `null` or fallback
-- [ ] Add logout button in top bar → clears Zustand store + redirects to `/login`
+- [x] Add logout button in top bar → clears Zustand store + redirects to `/login`
 
 ### 1.5 Frontend — Admin User Management Page
-- [ ] Create `frontend/src/pages/AdminUsuarios.tsx`:
+- [x] Create `frontend/src/pages/AdminUsuarios.tsx`:
   - Table of all users with columns: Nombre, Email, Rol, Activo, Acciones
   - "Nuevo agente" button → inline dialog form (nombre, email, password temporal, rol)
   - Toggle active/inactive per user
@@ -349,17 +349,17 @@
 ## MODULE 5 — AI / OCR Module
 
 ### 5.1 Backend — PDF Extraction Service
-- [ ] Create `backend/app/services/pdf.py`:
+- [x] Create `backend/app/services/pdf.py`:
   - `extract_text_pdfplumber(file_bytes: bytes) -> str` — uses pdfplumber, returns concatenated text from all pages
   - `extract_text_pymupdf(file_bytes: bytes) -> str` — fallback using PyMuPDF
   - `extract_text(file_bytes: bytes) -> str` — tries pdfplumber first, falls back to PyMuPDF if result is empty or throws; raises `ValueError` if both fail
   - Truncate extracted text to 8000 chars before sending to LLM (cost control)
 
 ### 5.2 Backend — LiteLLM Service
-- [ ] Create `backend/app/services/crypto.py`:
+- [x] Create `backend/app/services/crypto.py`:
   - `encrypt(plain: str) -> str` — Fernet encrypt, returns base64 string
   - `decrypt(ciphertext: str) -> str` — Fernet decrypt
-- [ ] Create `backend/app/services/llm.py`:
+- [x] Create `backend/app/services/llm.py`:
   - `get_active_config(db) -> ConfigLLM` — raises 503 if no active config
   - `build_model_id(config: ConfigLLM) -> str`:
     - `anthropic` → `"anthropic/claude-sonnet-4-6"`
@@ -375,7 +375,7 @@
     - Calls `call_llm` with OCR_PROMPT_TEMPLATE
     - Parses JSON response
     - Returns dict with `confianza` per field
-- [ ] OCR extraction prompt (`OCR_PROMPT_TEMPLATE`):
+- [x] OCR extraction prompt (`OCR_PROMPT_TEMPLATE`):
   ```
   Eres un extractor de datos de pólizas de seguros mexicanas.
   Del siguiente texto de una carátula de póliza, extrae estos campos y devuelve
@@ -401,7 +401,7 @@
   ```
 
 ### 5.3 Backend — OCR Router
-- [ ] Create `backend/app/routers/ocr.py`:
+- [x] Create `backend/app/routers/ocr.py`:
   - `POST /api/ocr` — multipart form with `file: UploadFile`
   - Rate limit: 10 req/min per user (using `slowapi`)
   - Validates file is PDF (`content_type == "application/pdf"`)
@@ -411,8 +411,8 @@
   - Saves uploaded file to `uploads/temp/{uuid}.pdf` (cleaned up after 1 hour by scheduler)
 
 ### 5.4 Frontend — OCR Uploader Component
-- [ ] Create `frontend/src/api/ocr.ts` — `uploadPdfForOcr(file: File): Promise<OcrResult>`
-- [ ] Create `frontend/src/components/polizas/OcrUploader.tsx`:
+- [x] Create `frontend/src/api/ocr.ts` — `uploadPdfForOcr(file: File): Promise<OcrResult>`
+- [x] Create `frontend/src/components/polizas/OcrUploader.tsx`:
   - Drag-and-drop zone OR file picker button
   - Accepts only PDF, max 20MB
   - States: `idle` → `uploading` → `processing` → `done` | `error`
@@ -420,7 +420,7 @@
   - On success: green checkmark, "Campos pre-llenados — revisa los destacados"
   - On error: red alert with error message
   - Props: `onExtracted: (data: OcrResult) => void`
-- [ ] In `PolizaForm.tsx` — integrate OCR result:
+- [x] In `PolizaForm.tsx` — integrate OCR result:
   - When `onExtracted` fires, call `form.setValue(field, value)` for each extracted field
   - Fields with `confianza < 0.8` get a yellow border + tooltip "Verificar — baja confianza (X%)"
   - Fields with `confianza >= 0.8` get a green checkmark icon
@@ -435,6 +435,9 @@
   - Each test: upload a sample carátula PDF, verify required fields extracted
 
 ### 5.6 Verification
+- [x] Backend compiles with `python -m compileall backend/app`
+- [x] Backend app imports with `backend/venv/Scripts/python.exe -c "from app.main import app"`
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Upload a real carátula de seguro de auto PDF → verify: número, aseguradora, fechas, prima extracted
 - [ ] Upload same PDF with DeepSeek configured → same fields extracted
 - [ ] Upload 11 PDFs in 1 minute → 11th returns HTTP 429
@@ -447,7 +450,7 @@
 ## MODULE 6 — Vigencia & Alertas System
 
 ### 6.1 Backend — Expiry Calculation
-- [ ] Create `backend/app/services/alertas.py`:
+- [x] Create `backend/app/services/alertas.py`:
   - `get_polizas_proximas_vencer(db, dias_max=60) -> list[Poliza]` — queries all active/por_vencer policies with `fecha_fin` within `dias_max` days
   - `calcular_estatus(poliza: Poliza) -> EstatusPoliza`:
     - `vencida` if `date.today() > fecha_fin + timedelta(days=periodo_gracia_dias)`
@@ -464,13 +467,13 @@
        - For each: if not `ya_enviada` → send email → insert `AlertaEnviada` row
 
 ### 6.2 Backend — Scheduler Setup
-- [ ] Create `backend/app/services/scheduler.py`:
+- [x] Create `backend/app/services/scheduler.py`:
   - Creates `AsyncIOScheduler` instance
   - Adds job: `procesar_alertas` daily at 08:00 (configurable via env `ALERT_HOUR=8`)
   - `start_scheduler()` / `stop_scheduler()` for lifespan events in `main.py`
 
 ### 6.3 Backend — Alert Router
-- [ ] Create `backend/app/routers/alertas.py`:
+- [x] Create `backend/app/routers/alertas.py`:
   - `GET /api/alertas/proximas` — returns policies grouped by urgency bucket:
     ```json
     {
@@ -484,27 +487,30 @@
   - `GET /api/alertas/historial` — paginated list of `AlertaEnviada` rows; filter by `?poliza_id=`
 
 ### 6.4 Frontend — Renovaciones Page
-- [ ] Create `frontend/src/api/alertas.ts` — `getProximas()`, `enviarAlerta(polizaId)`, `getHistorial(polizaId?)`
-- [ ] Create `frontend/src/pages/Renovaciones.tsx`:
+- [x] Create `frontend/src/api/alertas.ts` — `getProximas()`, `enviarAlerta(polizaId)`, `getHistorial(polizaId?)`
+- [x] Create `frontend/src/pages/Renovaciones.tsx`:
   - **4 tabs** using shadcn `<Tabs>`: Urgente | Próximas | Este mes | Próximos 2 meses
   - Each tab: table with columns: Cliente, Tipo, Aseguradora, Nº Póliza, Vence el, Días restantes, `VigenciaBadge`, acciones
   - Action buttons per row: [Enviar recordatorio] [Ver póliza] [Renovar (→ edit form)]
   - "Enviar recordatorio" → POST `/api/alertas/enviar/{id}` → toast "Recordatorio enviado" | error toast
   - Empty state: "No hay pólizas por vencer en este período"
-- [ ] Add badge count to Sidebar `Renovaciones` link — shows count of `urgente` tab policies
+- [x] Add badge count to Sidebar `Renovaciones` link — shows count of `urgente` tab policies
 
 ### 6.5 Frontend — Dashboard Urgency Cards
-- [ ] In `Dashboard.tsx`, add 2 stat cards:
+- [x] In `Dashboard.tsx`, add 2 stat cards:
   - "Vencen en 7 días" (red) — count from urgente bucket
   - "Vencen en 30 días" (yellow) — count from urgente + pronto + este_mes
   - Clicking card navigates to Renovaciones with correct tab pre-selected
 
 ### 6.6 Email Configuration
-- [ ] In `ConfigAlertas` setup: SMTP config fields (host, port, user, password, from name)
+- [x] In `ConfigAlertas` setup: SMTP config fields (host, port, user, password, from name)
 - [ ] `POST /api/config/alertas/test-email` — sends a test email to the configured agent email address
-- [ ] Alert email template (HTML): clear subject `"AVISO: Póliza #{numero} vence en {dias} días"`, agent branding (name from config), clickable "Ver póliza" deep link
+- [~] Alert email template (HTML): clear subject `"AVISO: Póliza #{numero} vence en {dias} días"`, agent branding (name from config), clickable "Ver póliza" deep link
 
 ### 6.7 Verification
+- [x] Backend compiles with `backend/venv/Scripts/python.exe -m compileall app`
+- [x] Backend app imports and exposes `/api/alertas` routes
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Create policy with `fecha_fin = today + 7` → immediately appears in "Urgente" tab
 - [ ] Create policy with `fecha_fin = today + 35` → appears in "Próximos 2 meses" tab
 - [ ] Create policy with `fecha_fin = yesterday - 1` → `estatus` = "vencida", does NOT appear in renovaciones
@@ -517,10 +523,10 @@
 ## MODULE 7 — Documentos (Document Management)
 
 ### 7.1 Backend
-- [ ] Create `backend/app/schemas/documento.py`:
+- [x] Create `backend/app/schemas/documento.py`:
   - `DocumentoOut(id, nombre_original, tipo, tamaño_bytes, mime_type, poliza_id, cliente_id, subido_por, created_at)`
   - `DocumentoCreate(tipo, poliza_id?, cliente_id?)` — file via multipart
-- [ ] Create `backend/app/routers/documentos.py`:
+- [x] Create `backend/app/routers/documentos.py`:
   - `POST /api/documentos` — multipart: `file: UploadFile`, `tipo: str`, `poliza_id?: int`, `cliente_id?: int`
     - Validates: max 20MB, allowed types (pdf, jpg, png, docx)
     - Saves to `uploads/{poliza_id or cliente_id}/{uuid}_{original_name}`
@@ -530,13 +536,13 @@
   - `DELETE /api/documentos/{id}` — deletes file from disk + DB row; verify ownership
 
 ### 7.2 Frontend
-- [ ] Create `frontend/src/api/documentos.ts` — `uploadDocumento(file, tipo, polizaId?, clienteId?)`, `getDocumentos(polizaId?, clienteId?)`, `downloadDocumento(id, nombre)`, `deleteDocumento(id)`
-- [ ] Create `frontend/src/components/documentos/DocumentoUploader.tsx`:
+- [x] Create `frontend/src/api/documentos.ts` — `uploadDocumento(file, tipo, polizaId?, clienteId?)`, `getDocumentos(polizaId?, clienteId?)`, `downloadDocumento(id, nombre)`, `deleteDocumento(id)`
+- [x] Create `frontend/src/components/documentos/DocumentoUploader.tsx`:
   - Drag-and-drop zone + file picker
   - Shows file type selector (Carátula / Endoso / Recibo / Siniestro / Identificación / Otro)
   - Progress bar during upload
   - On success: file appears in list below
-- [ ] Create `frontend/src/components/documentos/DocumentoList.tsx`:
+- [x] Create `frontend/src/components/documentos/DocumentoList.tsx`:
   - Props: `polizaId?` or `clienteId?`
   - Table: Nombre, Tipo, Tamaño, Fecha subida, Acciones (Ver/Descargar, Eliminar)
   - "Ver" opens PDF in new tab via blob URL
@@ -544,6 +550,9 @@
   - Confirm dialog before delete
 
 ### 7.3 Verification
+- [x] Backend compiles with `backend/venv/Scripts/python.exe -m compileall app`
+- [x] Backend app imports and exposes `/api/documentos` routes
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Upload PDF to a policy → download it → file matches original
 - [ ] Upload 25MB file → rejected with 413 / validation error
 - [ ] Upload `.exe` file → rejected with "Tipo de archivo no permitido"
@@ -555,34 +564,37 @@
 ## MODULE 8 — Tareas (Task Management)
 
 ### 8.1 Backend
-- [ ] Create `backend/app/schemas/tarea.py`:
+- [x] Create `backend/app/schemas/tarea.py`:
   - `TareaCreate(titulo, tipo, prioridad, fecha_vencimiento, descripcion?, cliente_id?, poliza_id?, asignada_a?)`
   - `TareaOut(+ id, cliente: ClienteOut?, poliza: PolizaSummary?, asignada_a: UsuarioOut, created_at)`
   - `TareaUpdate` — all fields optional including `completada`
-- [ ] Create `backend/app/routers/tareas.py`:
+- [x] Create `backend/app/routers/tareas.py`:
   - `GET /api/tareas` — list; filters: `?completada=false`, `?fecha_vencimiento_hasta=`, `?cliente_id=`, `?asignada_a=`; data isolation
   - `POST /api/tareas` — create; if `asignada_a` not specified, defaults to `current_user.id`
   - `PUT /api/tareas/{id}` — update; marking `completada=true` sets `completada_en` timestamp
   - `DELETE /api/tareas/{id}` — hard delete
 
 ### 8.2 Frontend
-- [ ] Create `frontend/src/api/tareas.ts` — CRUD functions
-- [ ] Create `frontend/src/components/tareas/TareaForm.tsx`:
+- [x] Create `frontend/src/api/tareas.ts` — CRUD functions
+- [x] Create `frontend/src/components/tareas/TareaForm.tsx`:
   - Fields: Título*, Tipo (select), Prioridad (select), Fecha vencimiento*, Descripción, Vincular a cliente (autocomplete), Vincular a póliza (autocomplete, filtered by selected client), Asignar a (select, admin only)
   - Validation: required fields, date not in past (warning, not error)
-- [ ] Create `frontend/src/pages/Tareas.tsx`:
+- [x] Create `frontend/src/pages/Tareas.tsx`:
   - Filter bar: Tipo, Prioridad, Completadas (toggle), Fecha vencimiento (range)
   - Table: Título, Tipo badge, Prioridad (color), Cliente/Póliza links, Vence el, Completada (checkbox)
   - Clicking checkbox → optimistic update → PATCH `completada=true`
   - "Nueva tarea" → dialog with `<TareaForm>`
   - Overdue tasks highlighted in red
-- [ ] In `Dashboard.tsx` — "Tareas pendientes hoy" section:
+- [x] In `Dashboard.tsx` — "Tareas pendientes hoy" section:
   - Queries `GET /api/tareas?completada=false&fecha_vencimiento_hasta={today}`
   - Shows max 5 tasks with quick-complete checkbox
   - "Ver todas" link to `/tareas`
-- [ ] Add sidebar badge: count of incomplete tasks due today or overdue
+- [x] Add sidebar badge: count of incomplete tasks due today or overdue
 
 ### 8.3 Verification
+- [x] Backend compiles with `backend/venv/Scripts/python.exe -m compileall app`
+- [x] Backend app imports and exposes `/api/tareas` routes
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Create task linked to a client and policy → verify links appear in detail
 - [ ] Mark task complete → checkbox stays checked on refresh; `completada_en` timestamp set
 - [ ] Task with `fecha_vencimiento = yesterday` → highlighted red in list + appears in Dashboard overdue tasks
@@ -593,12 +605,12 @@
 ## MODULE 9 — Comisiones & Reportes
 
 ### 9.1 Backend — Commission Data
-- [ ] Commissions are stored on each `Poliza` (fields: `porcentaje_comision`, `monto_comision`, `comision_pagada`)
-- [ ] `PUT /api/polizas/{id}` supports `comision_pagada: bool` — toggle to mark commission as paid
-- [ ] Add `GET /api/polizas/{id}/marcar-comision-pagada` — convenience endpoint
+- [x] Commissions are stored on each `Poliza` (fields: `porcentaje_comision`, `monto_comision`, `comision_pagada`)
+- [x] `PUT /api/polizas/{id}` supports `comision_pagada: bool` — toggle to mark commission as paid
+- [x] Add `GET /api/polizas/{id}/marcar-comision-pagada` — convenience endpoint
 
 ### 9.2 Backend — Reports Router
-- [ ] Create `backend/app/routers/reportes.py`:
+- [x] Create `backend/app/routers/reportes.py`:
   - `GET /api/reportes/comisiones`:
     - Params: `?mes=2025-03` (default: current month), `?agente_id=` (admin only)
     - Returns:
@@ -620,8 +632,8 @@
     - Comparison with previous month (% change)
 
 ### 9.3 Frontend — Reportes Page
-- [ ] Create `frontend/src/api/reportes.ts` — `getComisiones(mes?, agenteId?)`, `getVencimientos()`, `getActividad()`
-- [ ] Create `frontend/src/pages/Reportes.tsx` with tabs:
+- [x] Create `frontend/src/api/reportes.ts` — `getComisiones(mes?, agenteId?)`, `getVencimientos()`, `getActividad()`
+- [x] Create `frontend/src/pages/Reportes.tsx` with tabs:
   - **Tab 1 — Comisiones**:
     - Month picker (default: current month)
     - Summary cards: Total ganado / Pagado / Pendiente
@@ -633,6 +645,9 @@
     - Cards: Nuevos clientes, Nuevas pólizas, Tareas completadas vs. previous month
 
 ### 9.4 Verification
+- [x] Backend compiles with `backend/venv/Scripts/python.exe -m compileall app`
+- [x] Backend app imports and exposes `/api/reportes` routes
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Create 3 policies with commissions in current month → report shows correct totals
 - [ ] Mark one commission as paid → "Total pagado" updates; "Total pendiente" decreases
 - [ ] Agente A sees only their commissions; Admin selects Agente B → sees Agente B's commissions
@@ -642,8 +657,8 @@
 ## MODULE 10 — AI Cost Tracking
 
 ### 10.1 Backend
-- [ ] `LLMCallLog` already logged in Module 5 (`services/llm.py`)
-- [ ] Add to `routers/reportes.py`:
+- [x] `LLMCallLog` already logged in Module 5 (`services/llm.py`)
+- [x] Add to `routers/reportes.py`:
   - `GET /api/reportes/ai-costos`:
     - Params: `?mes=` (default: current month)
     - Returns:
@@ -658,19 +673,22 @@
         "alerta_activa": false
       }
       ```
-- [ ] Add endpoint `GET /api/reportes/ai-costos/historial` — paginated log of all LLM calls
-- [ ] Budget alert check in `services/llm.py` — after each call, if `total_month >= presupuesto * (alerta_porcentaje/100)`, set a flag in Redis/DB (simple: store in a `ConfigPresupuesto.alerta_activa` bool field)
+- [x] Add endpoint `GET /api/reportes/ai-costos/historial` — paginated log of all LLM calls
+- [x] Budget alert check in `services/llm.py` — after each call, if `total_month >= presupuesto * (alerta_porcentaje/100)`, set a flag in Redis/DB (simple: store in a `ConfigPresupuesto.alerta_activa` bool field)
 
 ### 10.2 Frontend
-- [ ] In `frontend/src/pages/Configuracion.tsx` — "Costos de IA" section:
+- [x] In `frontend/src/pages/Configuracion.tsx` — "Costos de IA" section:
   - Month picker
   - Cards: Total gastado este mes / Promedio por llamada / Llamadas realizadas
   - Progress bar: budget used (red if >80%)
   - "Presupuesto mensual: $X USD" with edit button
   - Table: últimas 20 llamadas — fecha, proveedor, modelo, operación, tokens, costo, estado (✓/✗)
-- [ ] Global budget warning banner: if `alerta_activa=true`, show yellow banner at top of every page: "⚠️ Has usado el X% de tu presupuesto de IA este mes"
+- [x] Global budget warning banner: if `alerta_activa=true`, show yellow banner at top of every page: "⚠️ Has usado el X% de tu presupuesto de IA este mes"
 
 ### 10.3 Verification
+- [x] Backend compiles with `backend/venv/Scripts/python.exe -m compileall app`
+- [x] Backend app imports and exposes `/api/reportes/ai-costos` routes
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Make 5 OCR calls → `GET /api/reportes/ai-costos` shows correct sum
 - [ ] Set budget to $0.01 → make one call → `alerta_activa=true` → banner appears on all pages
 - [ ] Failed LLM call (wrong API key) → `LLMCallLog` row with `exito=false` + error_msg stored
@@ -680,7 +698,7 @@
 ## MODULE 11 — Configuración (Settings)
 
 ### 11.1 Backend
-- [ ] Create `backend/app/routers/config.py` (all routes require `require_admin`):
+- [x] Create `backend/app/routers/config.py` (all routes require `require_admin`):
   - `GET /api/config/llm` — returns config; API key shown as `"***"` + last 4 chars
   - `PUT /api/config/llm` — upsert config; encrypts API key with Fernet before storing
   - `POST /api/config/llm/test` — makes a minimal test call to the configured provider; returns `{ok: true, modelo: "...", latency_ms: 123}` or error
@@ -689,11 +707,11 @@
   - `POST /api/config/alertas/test-email` — sends test email to agent email
   - `GET /api/config/presupuesto` — list of budgets per provider
   - `PUT /api/config/presupuesto/{proveedor}` — update budget for provider
-- [ ] On app startup (`main.py` lifespan): if no `ConfigAlertas` row exists → insert defaults; if no `ConfigPresupuesto` row → insert default ($50/month per provider)
+- [x] On app startup (`main.py` lifespan): if no `ConfigAlertas` row exists → insert defaults; if no `ConfigPresupuesto` row → insert default ($50/month per provider)
 
 ### 11.2 Frontend
-- [ ] Create `frontend/src/api/config.ts` — all config CRUD functions
-- [ ] Create `frontend/src/pages/Configuracion.tsx` with sections (collapsible cards or tabs):
+- [x] Create `frontend/src/api/config.ts` — all config CRUD functions
+- [x] Create `frontend/src/pages/Configuracion.tsx` with sections (collapsible cards or tabs):
   - **Proveedor de IA**:
     - Provider dropdown: Anthropic Claude / OpenAI / Google Gemini / DeepSeek
     - Model dropdown (dynamic based on provider):
@@ -716,9 +734,12 @@
     - Alert threshold % slider
     - [Guardar] button
   - **Costos de IA** (from Module 10)
-- [ ] Page wrapped in `<RoleGuard requiredRole="admin">`
+- [x] Page wrapped in `<RoleGuard requiredRole="admin">`
 
 ### 11.3 Verification
+- [x] Backend compiles with `backend/venv/Scripts/python.exe -m compileall app`
+- [x] Backend app imports and exposes `/api/config` routes
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Configure Anthropic API key → test connection → success response shows model name
 - [ ] Configure invalid API key → test connection → shows clear error "API key inválida"
 - [ ] Change provider to OpenAI → upload PDF → OCR uses OpenAI
@@ -730,7 +751,7 @@
 ## MODULE 12 — Dashboard
 
 ### 12.1 Backend
-- [ ] Add `GET /api/dashboard/stats` — returns all data needed for dashboard in one call:
+- [x] Add `GET /api/dashboard/stats` — returns all data needed for dashboard in one call:
   ```json
   {
     "total_clientes": 45,
@@ -747,8 +768,8 @@
   ```
 
 ### 12.2 Frontend
-- [ ] Create `frontend/src/api/dashboard.ts` — `getDashboardStats()`
-- [ ] Create `frontend/src/pages/Dashboard.tsx`:
+- [x] Create `frontend/src/api/dashboard.ts` — `getDashboardStats()`
+- [x] Create `frontend/src/pages/Dashboard.tsx`:
   - **Row 1 — KPI Cards** (4 cards):
     - Total clientes activos (blue)
     - Pólizas activas (green)
@@ -763,6 +784,9 @@
   - Data fetched with React Query; auto-refetch every 5 minutes
 
 ### 12.3 Verification
+- [x] Backend compiles with `backend/venv/Scripts/python.exe -m compileall app`
+- [x] Backend app imports and exposes `/api/dashboard/stats`
+- [x] Frontend builds with `npm.cmd run build`
 - [ ] Dashboard loads in <1 second (single API call)
 - [ ] Clicking red "Vencen en 7 días" card → navigates to Renovaciones with Urgente tab selected
 - [ ] Quick-complete a task on Dashboard → task disappears from list; count updates
@@ -772,10 +796,10 @@
 ## MODULE 13 — App Layout & Navigation
 
 ### 13.1 Layout Components
-- [ ] Create `frontend/src/components/layout/AppLayout.tsx`:
+- [x] Create `frontend/src/components/layout/AppLayout.tsx`:
   - Sidebar (left, fixed) + main content area (scrollable)
   - Renders `<Outlet>` from React Router in main area
-- [ ] Create `frontend/src/components/layout/Sidebar.tsx`:
+- [x] Create `frontend/src/components/layout/Sidebar.tsx`:
   - Logo / app name at top
   - Nav links with icons:
     - Dashboard (home icon)
@@ -786,12 +810,14 @@
     - Reportes (bar-chart icon)
     - Configuración (settings icon) — only visible to admin
   - User avatar + name at bottom with logout dropdown
-- [ ] Create `frontend/src/components/layout/TopBar.tsx`:
+- [x] Create `frontend/src/components/layout/TopBar.tsx`:
   - Page title (dynamic)
   - Budget warning banner (from Module 10) if applicable
   - Breadcrumb for deep pages (e.g., Clientes > Juan Pérez > Póliza #12345)
 
 ### 13.2 Verification
+- [x] Frontend builds with `npm.cmd run build`
+- [x] Removed stale `Soon` nav badges from completed sections
 - [ ] All nav links navigate to correct pages
 - [ ] Active nav item is highlighted
 - [ ] Sidebar badge counts update without page refresh (React Query polling)
@@ -840,17 +866,17 @@
 | Module | Backend | Frontend | Tested |
 |---|---|---|---|
 | 0 · Project Setup | [x] | [x] | [x] |
-| 1 · Auth & Users | [x] | [x] | [x] |
+| 1 · Auth & Users | [x] | [x] | [~] |
 | 2 · DB Models | [x] | [x] | [x] |
 | 3 · Clientes | [x] | [x] | [x] |
 | 4 · Pólizas | [x] | [x] | [x] |
-| 5 · AI / OCR | [ ] | [ ] | [ ] |
-| 6 · Vigencia & Alertas | [ ] | [ ] | [ ] |
-| 7 · Documentos | [ ] | [ ] | [ ] |
-| 8 · Tareas | [ ] | [ ] | [ ] |
-| 9 · Comisiones & Reportes | [ ] | [ ] | [ ] |
-| 10 · AI Cost Tracking | [ ] | [ ] | [ ] |
-| 11 · Configuración | [ ] | [ ] | [ ] |
-| 12 · Dashboard | [ ] | [ ] | [ ] |
-| 13 · Layout & Nav | [ ] | [ ] | [ ] |
+| 5 · AI / OCR | [x] | [x] | [~] |
+| 6 · Vigencia & Alertas | [x] | [x] | [~] |
+| 7 · Documentos | [x] | [x] | [~] |
+| 8 · Tareas | [x] | [x] | [~] |
+| 9 · Comisiones & Reportes | [x] | [x] | [~] |
+| 10 · AI Cost Tracking | [x] | [x] | [~] |
+| 11 · Configuración | [x] | [x] | [~] |
+| 12 · Dashboard | [x] | [x] | [~] |
+| 13 · Layout & Nav | [-] | [x] | [~] |
 | 14 · Polish & Security | [ ] | [ ] | [ ] |
